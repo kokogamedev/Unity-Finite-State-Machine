@@ -1,0 +1,12 @@
+{
+  "name": "com.psigenvision.finitestatemachine",
+  "displayName": "Finite State Machine",
+  "version": "0.1.0",
+  "unity": "6000.3",
+  "unityRelease": "2f1",
+  "description": "A flexible and modular Finite State Machine (FSM) implementation for Unity, inspired by Git-Amend's tutorial on FSM design. This package enables the creation of structured, reusable, and extensible state-based logic for AI, UI, and gameplay systems. Perfect for managing complex behaviors with ease!",
+  "author": {
+    "name": "David Kokoski",
+    "email": "kokogamedev@gmail.com"
+  }
+}

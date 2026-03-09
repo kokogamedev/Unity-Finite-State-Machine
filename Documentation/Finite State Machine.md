@@ -1,0 +1,494 @@
+## Overview of the Finite State Machine (FSM) System
+
+The provided FSM system is a modular implementation designed for handling state-based logic in a structured and reusable manner. It enables developers to define states, transitions, and conditions for state changes (predicates), making it ideal for managing complex systems such as AI behavior, game mechanics, or UI navigation in Unity.
+
+---
+
+### Key Components and Their Responsibilities
+
+1. **The `IState` Interface**
+	- Represents an individual state in the machine.
+	- Defines the lifecycle methods for a state:
+		- `Enter()`: Triggered when the state is entered.
+		- `OnAwake()`: Called during the initialization phase.
+		- `OnStart()`: Called when a state starts execution.
+		- `OnUpdate()`: Continuously executed during the state’s lifetime (usually per frame).
+		- `Exit()`: Called when the current state is exited.
+
+2. **The `IPredicate` Interface**
+	- Represents a condition that evaluates to either `true` or `false`.
+	- Acts as the logic for determining whether a transition between states should occur.
+
+3. **The `FuncPredicate` Class**
+	- Concrete implementation of `IPredicate`.
+	- Encapsulates a condition using a `Func<bool>` delegate, allowing for flexible, user-defined logic to determine conditions for transitions.
+
+4. **The `ITransition` Interface**
+	- Represents a transition between states.
+	- Consists of:
+		- `To`: The target state to transition to.
+		- `Condition`: A predicate (`IPredicate`) that determines if the transition should occur.
+
+5. **The `Transition` Class**
+	- A concrete implementation of `ITransition`.
+	- Links a specific destination state (`To`) with a condition (`Condition`) for transitioning.
+
+6. **The `StateMachine` Class**
+	- The central component of the FSM system.
+	- Manages states, transitions, and ensures the correct sequence of state lifecycle methods.
+
+   #### Key Responsibilities:
+	- Holds the current state **and** manages transitions.
+	- Allows for **global transitions** (`anyTransitions`), which are valid regardless of the current state.
+	- State lifecycle management:
+		- Calls `Awake()`, `Start()`, and `Update()` methods of the current state.
+	- Provides methods for setting and retrieving the current state:
+		- `SetCurrentState(IState state)`
+		- `SetStartingState(IState state)`
+		- `GetCurrentState()`
+	- Handles transitions:
+		- Uses `GetTransition()` to find a valid transition (evaluates predicates).
+		- Calls `ChangeState()` to switch states when a valid condition is met.
+
+7. **General Workflow**
+	- States are encapsulated as `IState` implementations.
+	- Transitions between states depend on `Transitions` and their associated `Predicates`.
+	- The `StateMachine` orchestrates the overall process, evaluating predicates, executing transition logic, and calling appropriate lifecycle methods for the active state.
+
+---
+
+### Example Workflow
+
+1. **Initialization**
+	- States and transitions are defined.
+	- The starting state is set using `SetStartingState()`.
+
+2. **State Execution**
+	- During the `Update()` loop, the FSM:
+		- Evaluates all global transitions as well as transitions specific to the current state.
+		- Switches to a new state if a transition condition evaluates to `true`.
+
+3. **State Switching**
+	- When a transition occurs:
+		- The current state’s `Exit()` method is called.
+		- The target state is set as the active state.
+		- The target state’s `Enter()` method is called.
+
+4. **State Lifecycle**
+	- The lifecycle of a state is managed by the FSM through its methods:
+		- `OnAwake()` (initialization)
+		- `OnStart()` (beginning logic)
+		- `OnUpdate()` (continuous logic)
+
+---
+
+### Benefits of This FSM Implementation
+
+- **Scalable and Modular**: The separation of responsibilities into interfaces and concrete implementations allows for easy extension and integration.
+- **Dynamic Transitions**: Transition conditions can be defined flexibly using `FuncPredicate`, making the system versatile for various use cases.
+- **Ease of Integration**: The system can be integrated into Unity projects directly and used for gameplay-related tasks such as AI behaviors and reactive systems.
+- **Reusable Logic**: States and transitions are reusable, enabling developers to define them once and use them across multiple FSMs.
+
+---
+
+## Component Breakdown
+
+Here’s a detailed breakdown of each component in isolation to help understand its role and how it contributes to the FSM system.
+
+---
+
+### 1. **`IState` Interface**
+
+#### Purpose:
+The `IState` interface defines a contract for all states in the FSM. It ensures that every state implements core lifecycle methods, enabling consistent behavior across states.
+
+#### Key Methods:
+1. **`Enter()`**
+	- Called when the FSM transitions INTO this state.
+	- Used for initialization specific to the state.
+
+2. **`Exit()`**
+	- Called when the FSM transitions OUT of this state.
+	- Used for cleanup or resource handling.
+
+3. **`OnAwake()`**
+	- An optional initialization step, usually invoked when the state is first created or set.
+	- For setup or dependencies if needed.
+
+4. **`OnStart()`**
+	- Invoked when the current state begins execution.
+	- Ideal for logic that should run once when the state becomes active.
+
+5. **`OnUpdate()`**
+	- Continuously executed while the FSM resides in this state (usually called once per frame).
+	- Used for state-specific updates, e.g., AI logic or handling input.
+
+---
+
+### 2. **`IPredicate` Interface**
+
+#### Purpose:
+The `IPredicate` interface abstracts conditional logic for state transitions by enforcing a single method, `Evaluate()`.
+
+#### Key Method:
+- **`Evaluate()`**
+	- Returns a `bool` indicating if the condition is met.
+	- Used as the foundation of state transitions to determine whether to switch to another state.
+
+#### Use Cases:
+- Implementations can capture dynamic conditions like:
+	- If a timer has expired.
+	- If a player's health is below a threshold.
+	- If a key input was detected.
+
+---
+
+### 3. **`FuncPredicate` Class**
+
+#### Purpose:
+A concrete implementation of `IPredicate` that uses a delegate (`Func<bool>`) to evaluate conditions. This class offers flexibility, allowing developers to pass any custom logic for transition conditions at runtime.
+
+#### Key Members:
+- **`Func<bool>`**
+	- The core delegate used to encapsulate condition logic.
+
+- **`Evaluate()`**
+	- Invokes the encapsulated delegate and returns the result.
+
+#### Benefits:
+- Reduces the need for complex predicate subclasses.
+- Allows for dynamic, runtime-defined transition conditions.
+
+**Example:**
+```csharp
+var transitionWhenReady = new FuncPredicate(() => character.IsReady);
+```
+
+---
+
+### 4. **`ITransition` Interface**
+
+#### Purpose:
+The `ITransition` interface defines a contract for transitions between states. It associates a destination state with a condition.
+
+#### Key Properties:
+1. **`To`**
+	- The target state to which the FSM will transition.
+
+2. **`Condition`**
+	- An instance of `IPredicate` that must evaluate to `true` for the transition to occur.
+
+---
+
+### 5. **`Transition` Class**
+
+#### Purpose:
+A concrete implementation of `ITransition`. It binds a specific destination state to a condition, providing a reusable building block for state transitions.
+
+#### Key Members:
+- **`IState To`**
+	- Represents the target state of the transition.
+
+- **`IPredicate Condition`**
+	- Encapsulates the conditional logic required to execute the transition.
+
+**Example:**
+```csharp
+var transition = new Transition(nextState, new FuncPredicate(() => health <= 0));
+```
+
+---
+
+### 6. **`StateMachine` Class**
+
+#### Purpose:
+The central controller that coordinates states, transitions, and their execution. It's responsible for managing the FSM's lifecycle, invoking states' methods, and executing transitions.
+
+#### Key Members:
+1. **`StateNode`**
+	- An internal structure that associates an `IState` with its transitions.
+
+2. **`current`**
+	- The active `StateNode` and state in the FSM.
+
+3. **`nodes`**
+	- A dictionary mapping state types to `StateNode` instances, storing all managed states.
+
+4. **`anyTransitions`**
+	- A collection of global transitions that are independent of the current state.
+
+#### Key Methods:
+- **`Awake()`**
+	- Invokes the `OnAwake()` method of the current state.
+
+- **`Start()`**
+	- Invokes the `OnStart()` method of the current state.
+
+- **`Update()`**
+	- Continuously runs during the lifecycle of the FSM.
+	- Evaluates transitions and switches states using `ChangeState()` if a valid transition is found.
+	- Invokes the `OnUpdate()` method of the current state.
+
+- **`SetCurrentState(IState state, bool enterAfterSetting = false)`**
+	- Sets the current state to a specific `IState`.
+	- Optionally calls the `Enter()` method immediately after setting the state.
+
+- **`SetStartingState(IState state)`**
+	- Helper method to set the initial state and immediately enter it.
+
+- **`GetCurrentState()`**
+	- Retrieves the current active state.
+
+- **`ChangeState(IState newState)`**
+	- Handles the state transition.
+	- Calls `Exit()` on the current state, switches to the new state, and calls `Enter()` on the new state.
+
+---
+
+### 7. **General Workflow**
+
+1. **Define States:**
+	- Implement `IState` for all states required by the FSM.
+
+2. **Define Transitions:**
+	- Create `Transition` objects by associating a condition (`IPredicate`) with a target state (`IState`).
+
+3. **Initialize StateMachine:**
+	- Instantiate the `StateMachine`.
+	- Add states and their transitions to it.
+	- Set the starting state using `SetStartingState()`.
+
+4. **Runtime Execution:**
+	- Continuously call `Update()` on the FSM (commonly done in Unity's `Update()` function).
+	- The FSM evaluates transitions and updates the current state.
+
+---
+
+### 8. Usage Example
+Here’s an example outline of how to use the FSM system in your Unity project:
+
+1. Define your states:
+```csharp
+using PsigenVision.FiniteStateMachine;
+using UnityEngine;
+
+public class BaseState: IState
+{
+    public event Action OnEnter;
+    public event Action OnExit;
+    public virtual void Enter()
+    {
+        OnEnter?.Invoke();
+        //noop
+    }
+
+    public virtual void OnAwake()
+    {
+        //noop
+    }
+
+    public virtual void OnStart()
+    {
+        //noop
+    }
+
+    public virtual void OnUpdate()
+    {
+        //noop
+    }
+
+    public virtual void Exit()
+    {
+        OnExit?.Invoke();
+        //noop
+    }
+}
+
+public class JumpState: BaseState
+{
+    private IAnimate animator;
+    private IApplyForce forceApplier;
+    public JumpState(IAnimate animator, IApplyForce forceApplier): base()
+    {
+        this.animator = animator;
+        this.forceApplier = forceApplier;
+    }
+    public override void Enter()
+    {
+        base.Enter();
+        forceApplier.Jump();
+        animator.SetTrigger(CharacterAnimationConfig.jumpTriggerHash);
+    }
+}
+
+public class DieState: BaseState
+{
+    private IAnimate animator;
+    private IPlayFX fxPlayer;
+    public DieState(IAnimate animator, IPlayFX fxPlayer): base()
+    {
+        this.animator = animator;
+        this.fxPlayer = fxPlayer;
+    }
+    public override void Enter()
+    {
+        base.Enter();
+        //Communicate game over state to game manager
+        GameStateManager.Instance.TriggerGameOver();
+        //Handle animations related to entering the death state 
+        animator.SetInt(CharacterAnimationConfig.deathTypeHash, 1); //death type 1 is the fall-backward death, which is most appropriate
+        animator.SetBool(CharacterAnimationConfig.deathHash, true);
+        //Handle FX (vfx and sfx) related to entering the death state
+        fxPlayer.PlayDeathVFX();
+    }
+
+    public override void Exit()
+    {
+        base.Exit();
+        //ensure the die animation is exited in the case that dying somehow transitions to something else
+        animator.SetBool(CharacterAnimationConfig.deathHash, false);
+        //ensure the die dying fx are stopped in the case that dying somehow transitions to something else
+        fxPlayer.StopDeathVFX();
+    }
+}
+    
+public class RunState: BaseState
+{
+    IAnimate animator;
+    private IManageMotion mover;
+    private IPlayFX fxPlayer;
+    private float startSpeed;
+    public RunState(IAnimate animator, IManageMotion mover, IPlayFX fxPlayer): base()
+    {
+        this.animator = animator;
+        this.mover = mover;
+        this.fxPlayer = fxPlayer;
+    }
+    public override void Enter()
+    {
+        base.Enter();
+        //Set all necessary parameters for animation
+        animator.SetBool(CharacterAnimationConfig.staticHash, true);
+        animator.SetFloat(CharacterAnimationConfig.speedHash, mover.Speed);
+        startSpeed = animator.GetSpeed();
+        animator.SetSpeed(mover.Speed);
+        
+        //Activate/deactivate necessary FX for vfx and sfx
+        fxPlayer.PlayRunVFX();
+    }
+
+    public override void Exit()
+    {
+        base.Exit();
+        //Reset animator to original pre-running speed
+        animator.SetSpeed(startSpeed);
+        //Stop playing any running vfx or sfx
+        fxPlayer.StopRunVFX();
+    }
+}
+    
+```
+
+2. Set up the `StateMachine`:
+```csharp
+using PsigenVision.FiniteStateMachine;
+using UnityEngine;
+
+public class CharacterFSM : MonoBehaviour
+{
+    private StateMachine stateMachine;
+    private States states;
+    protected struct States
+    {
+        public DieState Die;
+        public JumpState Jump;
+        public RunState Run;
+
+        public States(DieState die, JumpState jump, RunState run)
+        {
+            Die = die;
+            Jump = jump;
+            Run = run;
+        }
+    }
+    
+    public CharacterInput input; //The input keybindings for the character (e.g. jump)
+	private bool isOnGround = true;
+    private bool isDead = false;
+   
+    
+    //Initialize State Machine (externally)
+    public void InitializeStateMachine(IAnimate animator, IPlayFX fxPlayer)
+    {
+        //Create State Machine
+        stateMachine = new();
+        //Create States
+        states = new(
+            new DieState(animator, fxPlayer), 
+            new JumpState(animator, this), 
+            new RunState(animator, this, fxPlayer));
+        //Define Transitions
+        stateMachine.AddTransition(states.Run, states.Jump, new FuncPredicate(TransitionRunToJump));
+        stateMachine.AddTransition(states.Jump, states.Run, new FuncPredicate(TransitionJumpToRun));
+        stateMachine.AddAnyTransition(states.Die, new FuncPredicate(TransitionToDie));
+        
+        //Set current state to running by default
+        stateMachine.SetStartingState(states.Run);
+    }
+        
+    //Run State Machine (Initialize and Update)
+    void Update() => stateMachine.Update();
+        
+    #region State Machine Transition Methods
+    //Define State Machine Transition Predicates
+    
+    private bool TransitionJumpToRun() => isOnGround;
+    private bool TransitionRunToJump() => isOnGround && input.JumpOnKeyDown();
+    private bool TransitionToDie() => isDead; //This is handled by OnCollisionEnter and requires no further checks
+    #endregion
+
+    #region Movement Methods
+    /// <summary>
+    /// Add jump impulse-force to character's rigidbody according to some jumpForce value 
+    /// (this value is not physically-based - 2f is a benchmark force for a 1kg player)
+    /// </summary>
+    /// <param name="jumpForce"></param>
+    public void Jump(float jumpForce)
+    {
+        rBody.AddForce(movementConfig.GetJumpForce(jumpForce) * Vector3.up, ForceMode.Impulse);
+        isOnGround = false;
+    }
+    /// <summary>
+    /// Add jump-impulse force ot character's rigidbody according to the character's current jump force
+    /// </summary>
+    public void Jump()
+    {
+        rBody.AddForce(movementConfig.JumpForce * Vector3.up, ForceMode.Impulse);
+        isOnGround = false;
+    }
+
+    #endregion
+    
+    #region Collision Detection
+    
+    void OnCollisionEnter(Collision collision)
+    {
+        //Once character hits the ground, make the character enter a running state
+        if (collision.gameObject.CompareTag(GameStateManager.GameTags.Ground)) isOnGround = true;
+        //Once character hits an obstacle, make the character enter a death state
+        else if (collision.gameObject.CompareTag(GameStateManager.GameTags.Obstacle))
+        {
+            OnCollision?.Invoke();
+            isDead = true;
+        }
+    }
+    
+    #endregion
+}
+```
+
+--- 
+
+### Summary
+
+Each component in this FSM system works together to create a robust, reusable, and extensible solution for managing state-based behaviors in Unity. The modular structure allows for easy customization and fits a variety of use cases. By encapsulating states, transitions, and conditions separately, the system becomes both flexible and highly maintainable.
