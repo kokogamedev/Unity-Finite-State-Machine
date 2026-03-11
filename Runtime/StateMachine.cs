@@ -68,7 +68,27 @@ namespace PsigenVision.FiniteStateMachine
         /// </summary>
         /// <param name="state">The type of the state to check against the current state.</param>
         /// <returns>True if the specified state type matches the current state type; otherwise, false.</returns>
-        public bool IsCurrentState<T>() where T : IState => current.State is T;
+        public bool IsState<T>() where T : IState => StateNode.Is<T>(current);
+
+        /// <summary>
+        /// Determines whether the current active state matches either of the two specified state types.
+        /// </summary>
+        /// <typeparam name="T">The first state type to compare against.</typeparam>
+        /// <typeparam name="U">The second state type to compare against.</typeparam>
+        /// <returns>True if the current state is of type <typeparamref name="T"/> or <typeparamref name="U"/>; otherwise, false.</returns>
+        public bool IsStateEither<T, U>() where T : IState where U : IState => StateNode.IsEither<T, U>(current);
+
+        /// <summary>
+        /// Determines if the current state is of type T, U, or V.
+        /// This method evaluates the active state against the specified types
+        /// and returns true if it matches any of the provided types.
+        /// </summary>
+        /// <typeparam name="T">The first state type to check.</typeparam>
+        /// <typeparam name="U">The second state type to check.</typeparam>
+        /// <typeparam name="V">The third state type to check.</typeparam>
+        /// <returns>True if the current state matches any of the specified types; otherwise, false.</returns>
+        public bool IsStateAny<T, U, V>() where T : IState where U : IState where V : IState =>
+            StateNode.IsAny<T, U, V>(current);
 
         /// <summary>
         /// Sets the specified state as the current state of the state machine.
@@ -220,6 +240,37 @@ namespace PsigenVision.FiniteStateMachine
         {
             Transitions.Add(new Transition(to, condition));
         }
+
+        /// <summary>
+        /// Determines whether the state of the given StateNode is of the specified type.
+        /// </summary>
+        /// <typeparam name="T">The type of state to check against.</typeparam>
+        /// <param name="state">The StateNode containing the state to evaluate. Can be null.</param>
+        /// <returns>True if the state within the provided StateNode is of the specified type; otherwise, false.</returns>
+        public static bool Is<T>(StateNode state) where T : IState => IState.Is<T>(state.State);
+
+        /// <summary>
+        /// Determines whether the state node's current state is of type T or U.
+        /// This method evaluates the state encapsulated by the given state node
+        /// and checks if it matches either of the two specified state types.
+        /// </summary>
+        /// <typeparam name="T">The first type of state to check against.</typeparam>
+        /// <typeparam name="U">The second type of state to check against.</typeparam>
+        /// <param name="state">The state node to evaluate. If null, the method will return false.</param>
+        /// <returns>True if the current state of the node is of type T or U; otherwise, false.</returns>
+        public static bool IsEither<T, U>(StateNode state) where T : IState where U : IState =>
+            IState.IsEither<T, U>(state.State);
+
+        /// <summary>
+        /// Determines whether the provided state is of one of the specified types T, U, or V.
+        /// </summary>
+        /// <typeparam name="T">The first type of state to evaluate.</typeparam>
+        /// <typeparam name="U">The second type of state to evaluate.</typeparam>
+        /// <typeparam name="V">The third type of state to evaluate.</typeparam>
+        /// <param name="state">The state node to evaluate.</param>
+        /// <returns>True if the state is of type T, U, or V; otherwise, false.</returns>
+        public static bool IsAny<T, U, V>(StateNode state) where T : IState where U : IState where V : IState =>
+            IState.IsAny<T, U, V>(state.State);
 
         /// <summary>
         /// Represents a node in the state machine that encapsulates a particular state and its associated transitions.

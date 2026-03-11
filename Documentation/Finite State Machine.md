@@ -123,6 +123,17 @@ The `IState` interface defines a contract for all states in the FSM. It ensures 
 	- Continuously executed while the FSM resides in this state (usually called once per frame).
 	- Used for state-specific updates, e.g., AI logic or handling input.
 
+#### Static Methods:
+- **`Is<T>(IState state)`**  
+  Description: Checks if the provided state is of the specified type `T`.
+
+- **`IsEither<T, U>(IState state)`**  
+  Description: Checks if the state is of type `T` or `U`.
+
+- **`IsAny<T, U, V>(IState state)`**  
+  Description: Determines whether the state matches any of three types (`T`, `U`, `V`).
+
+
 ---
 
 ### 2. **`IPredicate` Interface**
@@ -199,7 +210,70 @@ var transition = new Transition(nextState, new FuncPredicate(() => health <= 0))
 
 ---
 
-### 6. **`StateMachine` Class**
+### 6. **`StateNode` Class**
+
+#### Purpose:
+A wrapper for managing an individual state (`IState`) and its associated transitions in the FSM. Provides utility for adding transitions and evaluating the type of the encapsulated state.
+
+#### Key Members:
+1. **`State`**
+	- The `IState` encapsulated by this node.
+
+2. **`Transitions`**
+	- A collection of transitions (`HashSet<ITransition>`) originating from the encapsulated state.
+	- Each transition determines how the state can change based on conditions.
+
+#### Key Methods:
+- **`AddTransition(ITransition transition)`**
+	- Adds a general transition to this state. The transition logic is independent of specific targets.
+
+- **`AddTransition(IState to, IPredicate condition)`**
+	- Adds a transition to a specific target state, with a condition determining when the transition is allowed.
+```csharp
+StateNode idleNode = new StateNode(new IdleState());
+idleNode.AddTransition(attackState, new Condition(() => player.IsInRange()));
+```
+
+- **Type Evaluation Utility**:
+	- **`Is<T>(StateNode state)`**
+		- Checks if a state encapsulated in the `StateNode` is of type `T`.
+  ```csharp
+if (StateNode.Is<IdleState>(currentStateNode)) Debug.Log("State is IdleState");
+```
+
+	- **`IsEither<T, U>(StateNode state)`**
+		- Checks if the encapsulated state is of type `T` or `U`.
+
+	- **`IsAny<T, U, V>(StateNode state)`**
+		- Determines if the encapsulated state matches **any** of the types `T`, `U`, or `V`.
+```csharp
+if (StateNode.IsAny<IdleState, AttackState, DeathState>(currentStateNode))
+	Debug.Log("Current state is valid for combat behavior.");
+```
+
+#### Example Integration:
+`StateNode` is typically utilized internally by the `StateMachine`. Here’s an example of how nodes might be created and interact with each other:
+```csharp
+// Idle and Attack states
+IState idleState = new IdleState();
+IState attackState = new AttackState();
+
+// Create StateNodes
+StateNode idleNode = new StateNode(idleState);
+StateNode attackNode = new StateNode(attackState);
+
+// Add transition
+idleNode.AddTransition(attackState, new Condition(() => player.IsInRange()));
+```
+
+---
+
+#### Summary:
+The `StateNode` class serves as the **backbone** for structuring states and their allowable transitions in the FSM. It provides extensible utilities for adding transitions and evaluating state types, ensuring smooth and scalable state management.
+
+---
+
+### 7. **`StateMachine` Class**
 
 #### Purpose:
 The central controller that coordinates states, transitions, and their execution. It's responsible for managing the FSM's lifecycle, invoking states' methods, and executing transitions.
@@ -239,11 +313,17 @@ The central controller that coordinates states, transitions, and their execution
 - **`SetStartingState(IState state)`**
 	- Helper method to set the initial state and immediately enter it.
 
-- **`IsCurrentState<T>()`**
+- **`IsState<T>()`**
 	- Helper method for checking if the current state is of type T
 ```csharp
 if (stateMachine.IsCurrentState<GroundedState>()) DoGroundedStateBehavior();
 ```
+
+- **`IsStateEither<T, U>()`**  
+  Description: Checks if the current state is of either two specified types.
+
+- **`IsStateAny<T, U, V>()`**  
+  Description: Determines if the active state matches any of three specified types.
 
 - **`ChangeState(IState newState)`**
 	- Handles the state transition.
@@ -251,7 +331,7 @@ if (stateMachine.IsCurrentState<GroundedState>()) DoGroundedStateBehavior();
 
 ---
 
-### 7. **General Workflow**
+### 8. **General Workflow**
 
 1. **Define States:**
 	- Implement `IState` for all states required by the FSM.

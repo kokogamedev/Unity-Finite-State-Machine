@@ -46,3 +46,32 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ---
 
+## [0.1.2] - 2026-03-10
+
+### Moderate refactoring with the addition of state-checking quality-of-life methods.
+
+### Refactored
+- Renamed `IsCurrentState<T>()` within the `StateMachine` class to `IsState<T>()` for consistency.
+- Moved the type-checking logic for `StateMachine.IsState<T>()` to the `IState` interface through a new static `IState.Is<T>(IState state)` method.
+
+### Added
+- **`IState` Interface**:
+  - Added static generic methods:
+    - `Is<T>(IState state)`: Checks if a state is of the specified type.
+    - `IsEither<T, U>(IState state)`: Checks if a state is of either of the two specified types.
+    - `IsAny<T, U, V>(IState state)`: Checks if a state matches any of the three specified types, supporting polymorphism and inheritance.
+
+- **`StateNode` Class**:
+  - Added static generic methods:
+    - `Is<T>(StateNode state)`: Checks if the state encapsulated within a node is of the specified type.
+    - `IsEither<T, U>(StateNode state)`: Checks if the state matches either of two types, using `IState.IsEither<T, U>`.
+    - `IsAny<T, U, V>(StateNode state)`: Checks if the state matches any of three types, using `IState.IsAny<T, U, V>`.
+
+- **`StateMachine` Class**:
+  - Introduced new methods for evaluating the current `StateNode`:
+    - `IsStateEither<T, U>()`: Determines if the current state is of either of the two types.
+    - `IsStateAny<T, U, V>()`: Determines if the current state matches any of the three specified types.
+
+---
+
+
