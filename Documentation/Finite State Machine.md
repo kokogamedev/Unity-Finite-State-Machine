@@ -217,6 +217,9 @@ The central controller that coordinates states, transitions, and their execution
 4. **`anyTransitions`**
 	- A collection of global transitions that are independent of the current state.
 
+5. **`CurrentState`**
+    - A property for retriving the current active state
+
 #### Key Methods:
 - **`Awake()`**
 	- Invokes the `OnAwake()` method of the current state.
@@ -236,8 +239,11 @@ The central controller that coordinates states, transitions, and their execution
 - **`SetStartingState(IState state)`**
 	- Helper method to set the initial state and immediately enter it.
 
-- **`GetCurrentState()`**
-	- Retrieves the current active state.
+- **`IsCurrentState<T>()`**
+	- Helper method for checking if the current state is of type T
+```csharp
+if (stateMachine.IsCurrentState<GroundedState>()) DoGroundedStateBehavior();
+```
 
 - **`ChangeState(IState newState)`**
 	- Handles the state transition.

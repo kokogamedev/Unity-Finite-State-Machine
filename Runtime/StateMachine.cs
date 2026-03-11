@@ -26,14 +26,17 @@ namespace PsigenVision.FiniteStateMachine
         private HashSet<ITransition> anyTransitions = new HashSet<ITransition>();
 
         /// <summary>
+        /// Retrieves the current state of the state machine.
+        /// </summary>
+        /// <returns>The current state being executed within the state machine, or null if no state is set.</returns>
+        public IState CurrentState => current.State;
+        
+        /// <summary>
         /// Invokes the OnAwake method of the current state's implementation, if a state is set.
         /// This method is intended to trigger initialization or setup logic of the current state
         /// before any further interactions or transitions.
         /// </summary>
-        public void Awake()
-        {
-            current.State?.OnAwake();
-        }
+        public void Awake() => current.State?.OnAwake();
 
         /// <summary>
         /// Initializes and starts the current state of the state machine.
@@ -42,10 +45,7 @@ namespace PsigenVision.FiniteStateMachine
         /// This method triggers the `OnStart` logic defined in the current state's implementation.
         /// It is part of the lifecycle management of the state machine and assumes the current state is already set.
         /// </remarks>
-        public void Start()
-        {
-            current.State?.OnStart();
-        }
+        public void Start() => current.State?.OnStart();
 
         /// <summary>
         /// Updates the state machine by checking for valid transitions and executing the current state's update logic.
@@ -64,10 +64,19 @@ namespace PsigenVision.FiniteStateMachine
         }
 
         /// <summary>
-        /// Sets the current state of the state machine. If the state doesn't already exist
-        /// in the internal nodes dictionary, it adds the new state as a StateNode.
+        /// Determines whether the specified state is the currently active state in the state machine.
+        /// </summary>
+        /// <param name="state">The type of the state to check against the current state.</param>
+        /// <returns>True if the specified state type matches the current state type; otherwise, false.</returns>
+        public bool IsCurrentState<T>() where T : IState => current.State is T;
+
+        /// <summary>
+        /// Sets the specified state as the current state of the state machine.
+        /// If the state does not exist in the state machine, it will be added.
+        /// Optionally, the state's Enter method can be invoked immediately after setting it as the current state.
         /// </summary>
         /// <param name="state">The state to set as the current state of the state machine.</param>
+        /// <param name="enterAfterSetting">Determines whether to invoke the state's Enter method after setting it. Defaults to false.</param>
         public void SetCurrentState(IState state, bool enterAfterSetting = false)
         {
             if (!nodes.TryGetValue(state.GetType(), out current))
@@ -76,12 +85,6 @@ namespace PsigenVision.FiniteStateMachine
         }
 
         public void SetStartingState(IState state) => SetCurrentState(state, true);
-
-        /// <summary>
-        /// Retrieves the current state of the state machine.
-        /// </summary>
-        /// <returns>The current state being executed within the state machine, or null if no state is set.</returns>
-        public IState GetCurrentState() => current.State;
 
         /// <summary>
         /// Changes the current state of the state machine to the specified new state.
