@@ -177,7 +177,193 @@ var transitionWhenReady = new FuncPredicate(() => character.IsReady);
 
 ---
 
-### 4. **`ITransition` Interface**
+### 4. `ActionPredicate` Class
+
+#### Overview
+The **`ActionPredicate`** is a new implementation of the `IPredicate` interface, designed to respond to events or external triggers. Unlike `FuncPredicate`, which evaluates a function to determine its truth value, `ActionPredicate` listens for an event and evaluates to `true` once the event has been triggered. This makes it particularly useful for handling event-driven transitions in the FSM.
+
+---
+
+#### Implementation
+
+```csharp
+using System;
+
+namespace PsigenVision.FiniteStateMachine
+{
+    /// <summary>
+    /// Represents a predicate that encapsulates an action and evaluates to true once the action has been invoked.
+    /// </summary>
+    public class ActionPredicate : IPredicate {
+        public bool triggered;
+
+        public ActionPredicate(ref Action eventReaction) => eventReaction += TriggerFlag;
+        public bool Evaluate() {
+            bool result = triggered;
+            triggered = false;
+            return result;
+        }
+
+        /// <summary>
+        /// Sets the internal flag to true, signaling that the predicate's condition has been triggered.
+        /// </summary>
+        private void TriggerFlag() => triggered = true;
+    }
+}
+```
+
+---
+
+#### Key Details
+1. **Purpose:**
+	- The `ActionPredicate` listens for an external trigger and evaluates to `true` when triggered.
+
+2. **Key Properties:**
+	- `triggered`: A flag that determines whether the predicate has been triggered.
+
+3. **Key Methods:**
+	- **`Evaluate()`**: Checks the value of `triggered`, resets it to `false`, and returns its value.
+	- **`TriggerFlag()`**: An internal method that sets the `triggered` flag to `true`.
+
+4. **Constructor:**
+	- Takes a reference to an `Action` parameter and attaches the internal `TriggerFlag` method to it. This allows the predicate to react to external events.
+
+---
+
+#### Usage Example
+
+Here’s an example of how to use `ActionPredicate` for event-based transitions:
+
+```csharp
+// Example: A character reacts to an external event (e.g., power-up pickup).
+
+using UnityEngine;
+using PsigenVision.FiniteStateMachine;
+
+public class CharacterFSM : MonoBehaviour
+{
+    private StateMachine stateMachine;
+    private States states;
+
+    protected struct States
+    {
+        public IdleState Idle;
+        public PoweredUpState PoweredUp;
+
+        public States(IdleState idle, PoweredUpState poweredUp)
+        {
+            Idle = idle;
+            PoweredUp = poweredUp;
+        }
+    }
+
+    private Action onPowerUpCollected;
+    private ActionPredicate powerUpPredicate;
+
+    private void Start()
+    {
+        // Initialize FSM and predicates
+        InitializeStateMachine();
+    }
+
+    private void InitializeStateMachine()
+    {
+        stateMachine = new StateMachine();
+
+        // Initialize ActionPredicate with the external trigger
+        powerUpPredicate = new ActionPredicate(ref onPowerUpCollected);
+
+        // Define states
+        states = new States(new IdleState(), new PoweredUpState());
+
+        // Add a transition between states based on the ActionPredicate
+        stateMachine.AddTransition(states.Idle, states.PoweredUp, powerUpPredicate);
+
+        // Set the starting state
+        stateMachine.SetStartingState(states.Idle);
+    }
+
+    private void Update()
+    {
+        stateMachine.Update();
+    }
+
+    private void OnPowerUpPickup()
+    {
+        // Simulate an external event triggering the predicate
+        onPowerUpCollected?.Invoke();
+    }
+}
+
+// Example States:
+public class IdleState : IState
+{
+    public void Enter() { Debug.Log("Entered Idle State."); }
+    public void OnAwake() { }
+    public void OnStart() { }
+    public void OnUpdate() { }
+    public void Exit() { Debug.Log("Exiting Idle State."); }
+}
+
+public class PoweredUpState : IState
+{
+    public void Enter() { Debug.Log("Powered up!"); }
+    public void OnAwake() { }
+    public void OnStart() { }
+    public void OnUpdate() { }
+    public void Exit() { Debug.Log("Power-up ended."); }
+}
+```
+
+---
+
+#### Benefits of `ActionPredicate`
+- **Event-Driven Transitions:** Ideal for scenarios where state transitions rely on isolated external events.
+- **Reusable Logic:** Can be used with any `Action`-based event system, enabling flexibility in connections.
+- **Seamless Integration:** Works cohesively with existing `IPredicate`-based transitions in the FSM framework.
+
+---
+
+#### IPredicate Update
+
+##### Purpose
+The `ActionPredicate` class is an implementation of the `IPredicate` interface that listens for an external trigger or event and evaluates to `true` when the event occurs. It is designed for event-driven FSM transitions.
+
+##### Key Members
+1. **`triggered`**
+	- A `bool` flag that determines if the predicate has been triggered.
+
+2. **Constructor**
+	- Accepts a reference to an `Action` and attaches an internal trigger method.
+
+3. **`Evaluate()`**
+	- Checks the value of `triggered` and resets it to `false`.
+
+4. **`TriggerFlag()`**
+	- Sets the `triggered` flag to `true`. This is automatically invoked when the attached `Action` is triggered.
+
+---
+
+##### Example Usage
+
+```csharp
+Action onEventOccurrence;
+ActionPredicate predicate = new ActionPredicate(ref onEventOccurrence);
+onEventOccurrence?.Invoke(); // Triggers the predicate
+
+bool result = predicate.Evaluate(); // Returns true
+```
+
+---
+
+##### Benefits
+- **Flexibility:** Enables event-based state transitions.
+- **Ease of Use:** Directly integrates with existing `Action` mechanisms.
+- **Reusability:** The same predicate can be reused across different states for modular design.
+
+---
+
+### 5. **`ITransition` Interface**
 
 #### Purpose:
 The `ITransition` interface defines a contract for transitions between states. It associates a destination state with a condition.
@@ -191,7 +377,7 @@ The `ITransition` interface defines a contract for transitions between states. I
 
 ---
 
-### 5. **`Transition` Class**
+### 6. **`Transition` Class**
 
 #### Purpose:
 A concrete implementation of `ITransition`. It binds a specific destination state to a condition, providing a reusable building block for state transitions.
@@ -210,7 +396,7 @@ var transition = new Transition(nextState, new FuncPredicate(() => health <= 0))
 
 ---
 
-### 6. **`StateNode` Class**
+### 7. **`StateNode` Class**
 
 #### Purpose:
 A wrapper for managing an individual state (`IState`) and its associated transitions in the FSM. Provides utility for adding transitions and evaluating the type of the encapsulated state.
@@ -273,7 +459,7 @@ The `StateNode` class serves as the **backbone** for structuring states and thei
 
 ---
 
-### 7. **`StateMachine` Class**
+### 8. **`StateMachine` Class**
 
 #### Purpose:
 The central controller that coordinates states, transitions, and their execution. It's responsible for managing the FSM's lifecycle, invoking states' methods, and executing transitions.
@@ -331,7 +517,7 @@ if (stateMachine.IsCurrentState<GroundedState>()) DoGroundedStateBehavior();
 
 ---
 
-### 8. **General Workflow**
+### 9. **General Workflow**
 
 1. **Define States:**
 	- Implement `IState` for all states required by the FSM.
@@ -350,7 +536,7 @@ if (stateMachine.IsCurrentState<GroundedState>()) DoGroundedStateBehavior();
 
 ---
 
-### 8. Usage Example
+### 10. Usage Example
 Here’s an example outline of how to use the FSM system in your Unity project:
 
 1. Define your states:

@@ -11,6 +11,7 @@ This repository contains a modular implementation of a Finite State Machine (FSM
 - **Flexible Extension:** Custom transition conditions using the `FuncPredicate` class.
 - **Global Transitions:** Support transitions that are independent of the current state.
 - **Lifecycle Awareness:** Manage state lifecycle methods (`Enter`, `OnAwake`, `OnStart`, `OnUpdate`, `Exit`).
+- **Event-Driven Transitions:** Use the `ActionPredicate` class to trigger state transitions based on external events such as button clicks, collisions, or custom triggers.
 
 ---
 
@@ -21,6 +22,7 @@ The FSM consists of the following main components:
 - **`IState` Interface:** Defines basic lifecycle methods for states (e.g., `Enter()`, `Exit()`).
 - **`IPredicate` Interface:** Represents the logic used to evaluate conditions for transitions.
 - **`FuncPredicate` Class:** Allows custom predicates with user-defined conditions using `Func<bool>`.
+- **`ActionPredicate` Class:** Allows custom predicates with user-defined conditions using `Action` in which conditional evaluation is trigger-based (i.e. Evaluation returns true if the action was triggered).
 - **`ITransition` Interface:** Represents a state transition (`To` state and `Condition`).
 - **`Transition` Class:** Concrete implementation of transitions between states.
 - **`StateMachine` Class:** The central controller that manages state activation, transitions, and lifecycle.

@@ -73,5 +73,21 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
     - `IsStateAny<T, U, V>()`: Determines if the current state matches any of the three specified types.
 
 ---
+## [0.1.3] - 2026-03-11
+### Added
+- **`ActionPredicate`**: Introduced a new `IPredicate` implementation for event-driven transitions in the FSM system.
+  - The `ActionPredicate` reacts to external triggers (e.g., `Action` events) and transitions states when the event occurs.
+  - Added usage examples and updated documentation showcasing how to integrate `ActionPredicate` in projects.
+
+### Updated
+- Updated the **README** and **Documentation** to include:
+  - The purpose and implementation details of the `ActionPredicate`.
+  - A step-by-step example of how to use it in combination with state transitions.
+  - Benefits of leveraging `ActionPredicate` alongside traditional predicates.
+
+### Fixed
+- Improved consistency in predicate implementation and documentation across the FSM system.
+
+---
 
 
