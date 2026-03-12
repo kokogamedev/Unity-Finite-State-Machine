@@ -9,23 +9,35 @@ namespace PsigenVision.Controller.Character.FiniteStateMachine
     {
         public event Action OnEnter;
         public event Action OnExit;
+
+        public StateLifecycleMask LifecycleRequirements { get; } = StateLifecycleMask.None;
         public virtual void Enter()
         {
             OnEnter?.Invoke();
             //noop
         }
 
-        public virtual void OnAwake()
+        public virtual void Awake()
         {
             //noop
         }
 
-        public virtual void OnStart()
+        public virtual void Start()
         {
             //noop
         }
 
-        public virtual void OnUpdate()
+        public virtual void Update()
+        {
+            //noop
+        }
+
+        public void LateUpdate()
+        {
+            //noop
+        }
+
+        public void FixedUpdate()
         {
             //noop
         }
@@ -35,5 +47,6 @@ namespace PsigenVision.Controller.Character.FiniteStateMachine
             OnExit?.Invoke();
             //noop
         }
+
     }
 }

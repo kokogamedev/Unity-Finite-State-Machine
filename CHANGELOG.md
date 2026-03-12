@@ -89,5 +89,31 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Improved consistency in predicate implementation and documentation across the FSM system.
 
 ---
+## [0.2.0] - 2026-03-12
+### Changed
+- **Refactored `StateMachine` architecture**:
+  - Moved state change logic from `StateMachine.Update()` to `StateMachine.ProcessStateChange()`, ensuring cleaner separation of concerns.
+  - Replaced ad-hoc `null` checks for `current.State` with a cached `isStateNull` flag, reducing unnecessary checks throughout the lifecycle methods.
+  - Added `FixedUpdate` and `LateUpdate` lifecycle methods to the `IState` interface, expanding the finite state machine's flexibility to handle Unity's additional update cycles.
+  - Renamed lifecycle methods in the `IState` interface:
+    - `OnStart` -> `Start`
+    - `OnUpdate` -> `Update`
+  - Introduced a new `StateLifecycleMask` enum. It allows states to explicitly declare which lifecycle methods they actually use. This improves runtime performance by avoiding unnecessary function calls.
 
+### Added
+- Lifecycle checks in all `StateMachine` lifecycle methods (`Awake`, `Start`, `Update`, `FixedUpdate`, `LateUpdate`):
+  - Example: `Update()` now verifies if the state's `LifecycleRequirements` include `StateLifecycleMask.Update` before calling the method.
+- Convenience bitmask combinations to the `StateLifecycleMask` enum (`AllUpdates`, `AllNonUpdates`, etc.) for easier mask configuration.
+
+---
+
+### BREAKING CHANGES
+- Refactored lifecycle methods in `IState`:
+  - Method names changed: `OnStart` -> `Start`, `OnUpdate` -> `Update`, etc.
+  - **Action Required**: Refactor existing states to use the renamed lifecycle methods.
+- Lifecycle methods now depend on the `StateLifecycleMask`:
+  - **Action Required**: Assign the new `LifecycleRequirements` property in each state to specify which methods it requires (`e.g., CurrentState.LifecycleRequirements = StateLifecycleMask.AllUpdates;`).
+- All code that uses this state machine must now explicitly call `ProcessStateChange()` to check for changes in state rather than `Update()`
+
+---
 

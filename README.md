@@ -1,17 +1,19 @@
 # Finite State Machine (FSM) for Unity
 
 ## Overview
-This repository contains a modular implementation of a Finite State Machine (FSM) tailored for Unity projects _based on git-amend's own state machine implementation which can be created by following the tutorial located at https://youtu.be/NnH6ZK5jt7o_. It provides a structured and reusable framework for managing state-based behaviors, making it ideal for use cases like AI systems, gameplay mechanics, UI navigation, and player controllers.
+This repository contains a **modular implementation of a Finite State Machine (FSM)** tailored for Unity projects, _inspired by git-amend's state machine tutorial_ which can be found [here](https://youtu.be/NnH6ZK5jt7o). It provides a structured and reusable framework for managing state-based behaviors in areas like AI systems, gameplay mechanics, UI navigation, or player controllers.
 
 ---
 
 ## Core Features
 - **State Management:** Encapsulate logic for individual states using the `IState` interface.
 - **Conditional Transitions:** Handle state transitions with dynamic conditions via the `IPredicate` interface and its implementations.
-- **Flexible Extension:** Custom transition conditions using the `FuncPredicate` class.
+- **Explicit Lifecycle Control:** States use the new `StateLifecycleMask` bitmask to define which lifecycle methods they use (`Awake`, `Start`, `Update`, `FixedUpdate`, `LateUpdate`). Unused methods are skipped during runtime, improving performance.
+- **Separation of Logic:** State change logic is now encapsulated in `ProcessStateChange()` for better flexibility and clarity.
+- **Flexible Extension:** Supports custom predicates like `FuncPredicate` and `ActionPredicate`, ensuring flexibility in transition behavior.
 - **Global Transitions:** Support transitions that are independent of the current state.
-- **Lifecycle Awareness:** Manage state lifecycle methods (`Enter`, `OnAwake`, `OnStart`, `OnUpdate`, `Exit`).
-- **Event-Driven Transitions:** Use the `ActionPredicate` class to trigger state transitions based on external events such as button clicks, collisions, or custom triggers.
+- **Lifecycle-Aware States:** Manage state lifecycle with streamlined method names (e.g., `Awake`, `Start`, `Exit`).
+- **Event-Driven Transitions:** Use the `ActionPredicate` class to trigger state transitions based on external events (e.g., button clicks, collisions).
 
 ---
 
@@ -19,12 +21,12 @@ This repository contains a modular implementation of a Finite State Machine (FSM
 The FSM consists of the following main components:
 
 ### 1. Components:
-- **`IState` Interface:** Defines basic lifecycle methods for states (e.g., `Enter()`, `Exit()`).
+- **`IState` Interface:** Defines basic lifecycle methods for states and a new `LifecycleRequirements` property for specifying lifecycle method usage.
 - **`IPredicate` Interface:** Represents the logic used to evaluate conditions for transitions.
-- **`FuncPredicate` Class:** Allows custom predicates with user-defined conditions using `Func<bool>`.
-- **`ActionPredicate` Class:** Allows custom predicates with user-defined conditions using `Action` in which conditional evaluation is trigger-based (i.e. Evaluation returns true if the action was triggered).
+- **`FuncPredicate` Class:** Allows user-defined transition conditions using `Func<bool>`.
+- **`ActionPredicate` Class:** Handles event-driven transitions triggered by external `Action`s.
 - **`ITransition` Interface:** Represents a state transition (`To` state and `Condition`).
-- **`Transition` Class:** Concrete implementation of transitions between states.
+- **`Transition` Class:** A concrete implementation for transitions between states.
 - **`StateMachine` Class:** The central controller that manages state activation, transitions, and lifecycle.
 
 ### 2. General Workflow:
@@ -32,27 +34,56 @@ The FSM consists of the following main components:
 2. Define **transitions** by associating target states with conditions (`IPredicate`).
 3. Instantiate a `StateMachine` and register states and their transitions.
 4. Set the starting state with `SetStartingState()`.
-5. Continuously call `Update()` (e.g., in Unity’s `MonoBehaviour.Update` method) to evaluate transitions and execute the state logic.
+5. Continuously call:
+    - **`ProcessStateChange()`** to handle transitions between states.
+    - **`Update()`, `FixedUpdate()`, `LateUpdate()`**, or other lifecycle methods as needed by the FSM.
 
 ---
 
-## Benefits
-- **Modular and Scalable:** Easily extendable with new states, predicates, or transitions.
-- **Reusable Logic:** Write states and transition conditions once and reuse them across FSMs and projects.
-- **Lightweight Integration:** Can be dropped into Unity projects seamlessly and used to control systems like AI or UI.
+## Key Changes in Version 2.0.0
+     > **⚠ Important – Breaking Changes**  
+     > Starting from version 2.0.0, state changes **must** be invoked via `ProcessStateChange()` instead of relying on `StateMachine.Update()`.
+
+### 1. Refactored StateMachine Logic:
+- `StateMachine.Update()` no longer handles state changes. **State changes must now be explicitly invoked via `ProcessStateChange()`**.
+- Null checks for `current.State` have been replaced with an efficient local boolean (`isStateNull`) for lifecycle methods.
+
+### 2. Expanded Lifecycle Functionality:
+- Added new lifecycle methods to the `IState` interface:
+    - `FixedUpdate()`: For physics-related updates (invoked in Unity’s `FixedUpdate`).
+    - `LateUpdate()`: For logic that requires late-frame execution.
+- Lifecycle method names have been simplified for consistency:
+    - `OnAwake` -> `Awake`
+    - `OnStart` -> `Start`
+    - `OnUpdate` -> `Update`
+- States must now explicitly declare the lifecycle methods they use by setting the `LifecycleRequirements` property with a `StateLifecycleMask`.
+
+### 3. State Lifecycle Optimization:
+- Introduced the `StateLifecycleMask` enum for fine-grained control over lifecycle methods.
+- Lifecycle methods in the FSM now check the **`LifecycleRequirements`** bitmask of the current state before invoking a method. Unnecessary calls (e.g., methods not used by a state) are skipped during runtime, optimizing performance.
 
 ---
 
 ## Usage Example
-Here’s an outline of how to use the FSM system in your Unity project:
+Here’s an updated outline of how to use the FSM system in your Unity project:
 
-1. Define your states:
+## State Flow Example (Diagram)
+   ```mermaid
+   stateDiagram-v2
+       [*] --> RunState
+       RunState --> JumpState : JumpTrigger
+       JumpState --> RunState : LandTrigger
+       RunState --> DieState : CollisionTrigger
+   ```
+
+1. Define your states, specifying their lifecycle requirements:
 ```csharp
 using PsigenVision.FiniteStateMachine;
 using UnityEngine;
 
 public class BaseState: IState
 {
+    public StateLifecycleMask LifecycleRequirements { get; }
     public event Action OnEnter;
     public event Action OnExit;
     public virtual void Enter()
@@ -61,17 +92,27 @@ public class BaseState: IState
         //noop
     }
 
-    public virtual void OnAwake()
+    public virtual void Awake()
     {
         //noop
     }
 
-    public virtual void OnStart()
+    public virtual void Start()
     {
         //noop
     }
 
-    public virtual void OnUpdate()
+    public virtual void Update()
+    {
+        //noop
+    }
+    
+	public virtual void LateUpdate()
+    {
+        //noop
+    }
+    
+	public virtual void FixedUpdate()
     {
         //noop
     }
@@ -91,6 +132,7 @@ public class JumpState: BaseState
     {
         this.animator = animator;
         this.forceApplier = forceApplier;
+        LifeCycleRequirements = StateLifecycleMask.None; //Only the Enter phase is used, no lifecycle methods
     }
     public override void Enter()
     {
@@ -108,6 +150,7 @@ public class DieState: BaseState
     {
         this.animator = animator;
         this.fxPlayer = fxPlayer;
+        LifeCycleRequirements = StateLifecycleMask.None; //Only the Enter phase is used, no lifecycle methods
     }
     public override void Enter()
     {
@@ -142,6 +185,7 @@ public class RunState: BaseState
         this.animator = animator;
         this.mover = mover;
         this.fxPlayer = fxPlayer;
+        LifeCycleRequirements = StateLifecycleMask.None; //Only the Enter phase is used, no lifecycle methods
     }
     public override void Enter()
     {
@@ -168,7 +212,7 @@ public class RunState: BaseState
     
 ```
 
-2. Set up the `StateMachine`:
+2. Set up the `StateMachine`, ensuring `ProcessStateChange()` is invoked:
 ```csharp
 using PsigenVision.FiniteStateMachine;
 using UnityEngine;
@@ -215,8 +259,9 @@ public class CharacterFSM : MonoBehaviour
         stateMachine.SetStartingState(states.Run);
     }
         
-    //Run State Machine (Initialize and Update)
-    void Update() => stateMachine.Update();
+    //Run State Machine (Initialize and Process State Change)
+    //NOTE: this would also where you call stateMachine.Update(), however no states currently use that lifecycle method
+    void Update() => stateMachine.ProcessStateChange();
         
     #region State Machine Transition Methods
     //Define State Machine Transition Predicates
@@ -267,6 +312,12 @@ public class CharacterFSM : MonoBehaviour
 ```
 
 --- 
+## Benefits
+- **Improved Performance:** Lifecycle calls are skipped for unused methods, reducing overhead in states with minimal logic.
+- **Modular and Scalable:** Easily extendable with new states, predicates, or transitions.
+- **Reusability:** Shared logic can be reused across projects with no modifications.
+
+---
 
 ## Contributing
 Contributions are welcome! Feel free to open issues or submit pull requests if you have ideas for improvements.
@@ -279,4 +330,4 @@ This FSM framework is licensed under the MIT License. See the [LICENSE](./LICENS
 ---
 
 ## Acknowledgements
-This implementation was designed entirely under the guidance of git-amend whose github can be found under the username adammyhre at the link https://github.com/adammyhre. See his finite state machine tutorial at https://youtu.be/NnH6ZK5jt7o.
+This implementation was designed entirely under the guidance of git-amend, whose GitHub can be found at [adammyhre](https://github.com/adammyhre). See his finite state machine tutorial at [https://youtu.be/NnH6ZK5jt7o](https://youtu.be/NnH6ZK5jt7o).

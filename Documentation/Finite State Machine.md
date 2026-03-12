@@ -1,18 +1,43 @@
-## Overview of the Finite State Machine (FSM) System
+# Overview of the Finite State Machine (FSM) System
 
 The provided FSM system is a modular implementation designed for handling state-based logic in a structured and reusable manner. It enables developers to define states, transitions, and conditions for state changes (predicates), making it ideal for managing complex systems such as AI behavior, game mechanics, or UI navigation in Unity.
+
+## Key Changes in Version 2.0.0
+     > **⚠ Important – Breaking Changes**  
+     > Starting from version 2.0.0, state changes **must** be invoked via `ProcessStateChange()` instead of relying on `StateMachine.Update()`.
+
+### 1. Refactored StateMachine Logic:
+- `StateMachine.Update()` no longer handles state changes. **State changes must now be explicitly invoked via `ProcessStateChange()`**.
+- Null checks for `current.State` have been replaced with an efficient local boolean (`isStateNull`) for lifecycle methods.
+
+### 2. Expanded Lifecycle Functionality:
+- Added new lifecycle methods to the `IState` interface:
+	- `FixedUpdate()`: For physics-related updates (invoked in Unity’s `FixedUpdate`).
+	- `LateUpdate()`: For logic that requires late-frame execution.
+- Lifecycle method names have been simplified for consistency:
+	- `OnAwake` -> `Awake`
+	- `OnStart` -> `Start`
+	- `OnUpdate` -> `Update`
+- States must now explicitly declare the lifecycle methods they use by setting the `LifecycleRequirements` property with a `StateLifecycleMask`.
+
+### 3. State Lifecycle Optimization:
+- Introduced the `StateLifecycleMask` enum for fine-grained control over lifecycle methods.
+- Lifecycle methods in the FSM now check the **`LifecycleRequirements`** bitmask of the current state before invoking a method. Unnecessary calls (e.g., methods not used by a state) are skipped during runtime, optimizing performance.
 
 ---
 
 ### Key Components and Their Responsibilities
 
 1. **The `IState` Interface**
-	- Represents an individual state in the machine.
+	- Represents an individual state in the machine. 
+    - Defines basic lifecycle methods for states and a new `LifecycleRequirements` property for specifying lifecycle method usage.
 	- Defines the lifecycle methods for a state:
 		- `Enter()`: Triggered when the state is entered.
-		- `OnAwake()`: Called during the initialization phase.
-		- `OnStart()`: Called when a state starts execution.
-		- `OnUpdate()`: Continuously executed during the state’s lifetime (usually per frame).
+		- `Awake()`: Called during the initialization phase.
+		- `Start()`: Called when a state starts execution.
+		- `Update()`: Continuously executed during the state’s lifetime (usually per frame in the Update unity lifecycle method via the StateMachine.Update method).
+        - `LateUpdate()`: Continuously executed during the state’s lifetime (usually per frame in the LateUpdate unity lifecycle method via the StateMachine.LateUpdate method).
+        - `FixedUpdate()`: Continuously executed during the state’s lifetime (usually per physics frame in the FixedUpdate unity lifecycle method via the StateMachine.FixedUpdate method).
 		- `Exit()`: Called when the current state is exited.
 
 2. **The `IPredicate` Interface**
@@ -38,10 +63,12 @@ The provided FSM system is a modular implementation designed for handling state-
 	- Manages states, transitions, and ensures the correct sequence of state lifecycle methods.
 
    #### Key Responsibilities:
-	- Holds the current state **and** manages transitions.
+	- Holds the current state **and** manages transitions via StateMachine.ProcessStateChange()
+      - What Changed: State transition logic moved out of StateMachine.Update() into a new method, ProcessStateChange(), which decouples update logic from transition logic.
 	- Allows for **global transitions** (`anyTransitions`), which are valid regardless of the current state.
 	- State lifecycle management:
-		- Calls `Awake()`, `Start()`, and `Update()` methods of the current state.
+    - 
+		- Calls `Awake()`, `Start()`, `Update()`, `LateUpdate()`, and `FixedUpdate()` methods of the current state given that that state (IState) specifies that it uses that lifecycle method (via bitmask `LifecycleRequirements` )
 	- Provides methods for setting and retrieving the current state:
 		- `SetCurrentState(IState state)`
 		- `SetStartingState(IState state)`
@@ -49,11 +76,12 @@ The provided FSM system is a modular implementation designed for handling state-
 	- Handles transitions:
 		- Uses `GetTransition()` to find a valid transition (evaluates predicates).
 		- Calls `ChangeState()` to switch states when a valid condition is met.
+        - Requires call to `StateMachine.ProcessStateChange()` to call any of the transition methods in the correct manner to initiate state changes
 
 7. **General Workflow**
-	- States are encapsulated as `IState` implementations.
+	- States are encapsulated as `IState` implementations that specify their own usage of Unity lifecycle methods 
 	- Transitions between states depend on `Transitions` and their associated `Predicates`.
-	- The `StateMachine` orchestrates the overall process, evaluating predicates, executing transition logic, and calling appropriate lifecycle methods for the active state.
+	- The `StateMachine` orchestrates the overall process, evaluating predicates, executing transition logic, and calling appropriate lifecycle methods for the active state given that state uses those lifecycle methods.
 
 ---
 
@@ -64,7 +92,7 @@ The provided FSM system is a modular implementation designed for handling state-
 	- The starting state is set using `SetStartingState()`.
 
 2. **State Execution**
-	- During the `Update()` loop, the FSM:
+	- During whichever loop the user selects (`Update()`, `FixedUpdate`, `LateUpdate`, etc), the FSM (via a call to `ProcessStateChange()`):
 		- Evaluates all global transitions as well as transitions specific to the current state.
 		- Switches to a new state if a transition condition evaluates to `true`.
 
@@ -75,10 +103,12 @@ The provided FSM system is a modular implementation designed for handling state-
 		- The target state’s `Enter()` method is called.
 
 4. **State Lifecycle**
-	- The lifecycle of a state is managed by the FSM through its methods:
-		- `OnAwake()` (initialization)
-		- `OnStart()` (beginning logic)
-		- `OnUpdate()` (continuous logic)
+	- The lifecycle of a state is managed by the FSM through its methods _based on each states internally specified LifecycleRequirements_ (meaning which lifecycle methods it actually uses):
+		- `Awake()` (initialization)
+		- `Start()` (beginning logic)
+		- `Update()` (continuous logic)
+        - `LateUpdate()` (continuous logic)
+        - `FixedUpdate()` (continuous physics logic)
 
 ---
 
@@ -88,6 +118,7 @@ The provided FSM system is a modular implementation designed for handling state-
 - **Dynamic Transitions**: Transition conditions can be defined flexibly using `FuncPredicate`, making the system versatile for various use cases.
 - **Ease of Integration**: The system can be integrated into Unity projects directly and used for gameplay-related tasks such as AI behaviors and reactive systems.
 - **Reusable Logic**: States and transitions are reusable, enabling developers to define them once and use them across multiple FSMs.
+- **Improved Performance:** Lifecycle calls are skipped for unused methods, reducing overhead in states with minimal logic.
 
 ---
 
@@ -100,7 +131,7 @@ Here’s a detailed breakdown of each component in isolation to help understand 
 ### 1. **`IState` Interface**
 
 #### Purpose:
-The `IState` interface defines a contract for all states in the FSM. It ensures that every state implements core lifecycle methods, enabling consistent behavior across states.
+The `IState` interface defines a contract for all states in the FSM. It ensures that every state implements the necessary lifecycle methods, enabling consistent behavior and integration with the FSM's workflow.
 
 #### Key Methods:
 1. **`Enter()`**
@@ -111,17 +142,29 @@ The `IState` interface defines a contract for all states in the FSM. It ensures 
 	- Called when the FSM transitions OUT of this state.
 	- Used for cleanup or resource handling.
 
-3. **`OnAwake()`**
+3. **`Awake()`**
 	- An optional initialization step, usually invoked when the state is first created or set.
 	- For setup or dependencies if needed.
 
-4. **`OnStart()`**
-	- Invoked when the current state begins execution.
+4. **`Start()`**
+	- Invoked when the state begins execution.
 	- Ideal for logic that should run once when the state becomes active.
 
-5. **`OnUpdate()`**
-	- Continuously executed while the FSM resides in this state (usually called once per frame).
+5. **`Update()`**
+	- Continuously executed while the FSM resides in this state (commonly called once per frame).
 	- Used for state-specific updates, e.g., AI logic or handling input.
+
+6. **`FixedUpdate()`**
+	- Invoked at a fixed time interval, making it ideal for physics calculations or other needs tied to Unity's physics system.
+
+7. **`LateUpdate()`**
+	- Called at the end of the frame after `Update()`.
+	- Perfect for post-rendering logic, setting camera positions, or final adjustments.
+
+#### Property:
+- **`LifecycleRequirements`**
+	- A `StateLifecycleMask` identifying which lifecycle methods the state requires.
+	- Prevents unused methods from being redundantly invoked, improving FSM efficiency.
 
 #### Static Methods:
 - **`Is<T>(IState state)`**  
@@ -477,33 +520,49 @@ The central controller that coordinates states, transitions, and their execution
 4. **`anyTransitions`**
 	- A collection of global transitions that are independent of the current state.
 
+5. **`isStateNull`**
+	- A cached boolean value indicating whether the current state is `null`.
+	- Improved performance by replacing redundant `null` checks.
+
 5. **`CurrentState`**
     - A property for retriving the current active state
 
 #### Key Methods:
 - **`Awake()`**
-	- Invokes the `OnAwake()` method of the current state.
+	- Invokes the `Awake()` method of the current state if that state's `LifecycleRequirements` indicates it is used.
 
 - **`Start()`**
-	- Invokes the `OnStart()` method of the current state.
+	- Invokes the `Start()` method of the current state if that state's `LifecycleRequirements` indicates it is used.
 
 - **`Update()`**
 	- Continuously runs during the lifecycle of the FSM.
-	- Evaluates transitions and switches states using `ChangeState()` if a valid transition is found.
-	- Invokes the `OnUpdate()` method of the current state.
+	- Invokes the `Update()` method of the current state if that state's `LifecycleRequirements` indicates it is used.
+	- No longer responsible for checking state transitions (delegated to `ProcessStateChange()`).
+
+- **`FixedUpdate()`**
+	- Invokes `FixedUpdate()` on the current state if the state requires it, based on that state's `LifecycleRequirements`.
+
+- **`ateUpdate()`**
+	- Invokes `LateUpdate()` on the current state if the state requires it, based on that state's `LifecycleRequirements`.
+
+- **`ProcessStateChange()`**
+	- Encapsulates state transition logic.
+	- Checks all transitions for validity and handles state changes accordingly.
 
 - **`SetCurrentState(IState state, bool enterAfterSetting = false)`**
-	- Sets the current state to a specific `IState`.
+	- Safely sets the current state to a specific `IState`.
+	- Updates the cached `isStateNull` value.
 	- Optionally calls the `Enter()` method immediately after setting the state.
 
 - **`SetStartingState(IState state)`**
 	- Helper method to set the initial state and immediately enter it.
 
 - **`IsState<T>()`**
-	- Helper method for checking if the current state is of type T
-```csharp
-if (stateMachine.IsCurrentState<GroundedState>()) DoGroundedStateBehavior();
-```
+	- Helper method for checking if the current state is of type `T`.
+
+   ```csharp
+   if (stateMachine.IsCurrentState<GroundedState>()) DoGroundedStateBehavior();
+   ```
 
 - **`IsStateEither<T, U>()`**  
   Description: Checks if the current state is of either two specified types.
@@ -512,7 +571,7 @@ if (stateMachine.IsCurrentState<GroundedState>()) DoGroundedStateBehavior();
   Description: Determines if the active state matches any of three specified types.
 
 - **`ChangeState(IState newState)`**
-	- Handles the state transition.
+	- Handles the state transition process.
 	- Calls `Exit()` on the current state, switches to the new state, and calls `Enter()` on the new state.
 
 ---
@@ -521,6 +580,7 @@ if (stateMachine.IsCurrentState<GroundedState>()) DoGroundedStateBehavior();
 
 1. **Define States:**
 	- Implement `IState` for all states required by the FSM.
+	- Specify each state's `LifecycleRequirements` based on the lifecycle methods it uses.
 
 2. **Define Transitions:**
 	- Create `Transition` objects by associating a condition (`IPredicate`) with a target state (`IState`).
@@ -531,21 +591,32 @@ if (stateMachine.IsCurrentState<GroundedState>()) DoGroundedStateBehavior();
 	- Set the starting state using `SetStartingState()`.
 
 4. **Runtime Execution:**
-	- Continuously call `Update()` on the FSM (commonly done in Unity's `Update()` function).
-	- The FSM evaluates transitions and updates the current state.
+	- Continuously call `Update()`, `FixedUpdate()`, and `LateUpdate()` on the FSM (commonly done in Unity's respective lifecycle methods).
+	- The FSM evaluates transitions within `ProcessStateChange()` and updates the current state as needed.
 
 ---
 
 ### 10. Usage Example
-Here’s an example outline of how to use the FSM system in your Unity project:
+## Usage Example
+Here’s an updated outline of how to use the FSM system in your Unity project:
 
-1. Define your states:
+## State Flow Example (Diagram)
+   ```mermaid
+   stateDiagram-v2
+       [*] --> RunState
+       RunState --> JumpState : JumpTrigger
+       JumpState --> RunState : LandTrigger
+       RunState --> DieState : CollisionTrigger
+   ```
+
+1. Define your states, specifying their lifecycle requirements:
 ```csharp
 using PsigenVision.FiniteStateMachine;
 using UnityEngine;
 
 public class BaseState: IState
 {
+    public StateLifecycleMask LifecycleRequirements { get; }
     public event Action OnEnter;
     public event Action OnExit;
     public virtual void Enter()
@@ -554,17 +625,27 @@ public class BaseState: IState
         //noop
     }
 
-    public virtual void OnAwake()
+    public virtual void Awake()
     {
         //noop
     }
 
-    public virtual void OnStart()
+    public virtual void Start()
     {
         //noop
     }
 
-    public virtual void OnUpdate()
+    public virtual void Update()
+    {
+        //noop
+    }
+    
+	public virtual void LateUpdate()
+    {
+        //noop
+    }
+    
+	public virtual void FixedUpdate()
     {
         //noop
     }
@@ -584,6 +665,7 @@ public class JumpState: BaseState
     {
         this.animator = animator;
         this.forceApplier = forceApplier;
+        LifeCycleRequirements = StateLifecycleMask.None; //Only the Enter phase is used, no lifecycle methods
     }
     public override void Enter()
     {
@@ -601,6 +683,7 @@ public class DieState: BaseState
     {
         this.animator = animator;
         this.fxPlayer = fxPlayer;
+        LifeCycleRequirements = StateLifecycleMask.None; //Only the Enter phase is used, no lifecycle methods
     }
     public override void Enter()
     {
@@ -635,6 +718,7 @@ public class RunState: BaseState
         this.animator = animator;
         this.mover = mover;
         this.fxPlayer = fxPlayer;
+        LifeCycleRequirements = StateLifecycleMask.None; //Only the Enter phase is used, no lifecycle methods
     }
     public override void Enter()
     {
@@ -661,7 +745,7 @@ public class RunState: BaseState
     
 ```
 
-2. Set up the `StateMachine`:
+2. Set up the `StateMachine`, ensuring `ProcessStateChange()` is invoked:
 ```csharp
 using PsigenVision.FiniteStateMachine;
 using UnityEngine;
@@ -708,8 +792,9 @@ public class CharacterFSM : MonoBehaviour
         stateMachine.SetStartingState(states.Run);
     }
         
-    //Run State Machine (Initialize and Update)
-    void Update() => stateMachine.Update();
+    //Run State Machine (Initialize and Process State Change)
+    //NOTE: this would also where you call stateMachine.Update(), however no states currently use that lifecycle method
+    void Update() => stateMachine.ProcessStateChange();
         
     #region State Machine Transition Methods
     //Define State Machine Transition Predicates

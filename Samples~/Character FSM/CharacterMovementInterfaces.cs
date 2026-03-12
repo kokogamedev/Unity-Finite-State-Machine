@@ -65,13 +65,9 @@ namespace PsigenVision.Controller.Character
         Vector3 MovementVelocity { get; } //refers to velocity derived from movement speed and movement direction
 
         /// <summary>
-        /// Represents the linear momentum of the character in motion, expressed as a <c>Vector3</c>. Whether this momentum is local or global is determined by settings in the character controller.
+        /// Represents the global/world linear momentum of the character based on its mass
+        /// and current velocity.
         /// </summary>
-        /// <remarks>
-        /// Linear momentum is calculated as the product of the character's mass and its linear velocity.
-        /// It is commonly used in physics calculations to determine the motion state or to simulate
-        /// realistic interactions with other physical objects in the game environment.
-        /// </remarks>
-        Vector3 LinearMomentum { get; } //refers to momentum derived from kinematics - whether it is local or global is determined by internal settings and calculation  
+        Vector3 LinearMomentum { get; } //refers to global momentum derived from kinematics - should take into account whether the calculated momentum is local or global, and if it is global, convert it to global using transform.localToWorldMatrix * momentum  
     }
 }

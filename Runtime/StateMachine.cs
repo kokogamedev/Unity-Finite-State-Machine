@@ -30,37 +30,77 @@ namespace PsigenVision.FiniteStateMachine
         /// </summary>
         /// <returns>The current state being executed within the state machine, or null if no state is set.</returns>
         public IState CurrentState => current.State;
+
+        private bool isStateNull = false;
         
-        /// <summary>
-        /// Invokes the OnAwake method of the current state's implementation, if a state is set.
-        /// This method is intended to trigger initialization or setup logic of the current state
-        /// before any further interactions or transitions.
-        /// </summary>
-        public void Awake() => current.State?.OnAwake();
 
         /// <summary>
-        /// Initializes and starts the current state of the state machine.
+        /// Executes the processing of a state change in the finite state machine.
+        /// This method determines if a valid transition is available based on conditions,
+        /// and initiates a state change if a transition is found. If no transition is valid,
+        /// the current state remains unchanged.
         /// </summary>
-        /// <remarks>
-        /// This method triggers the `OnStart` logic defined in the current state's implementation.
-        /// It is part of the lifecycle management of the state machine and assumes the current state is already set.
-        /// </remarks>
-        public void Start() => current.State?.OnStart();
-
-        /// <summary>
-        /// Updates the state machine by checking for valid transitions and executing the current state's update logic.
-        /// If a valid transition is found, the state machine transitions to the target state.
-        /// </summary>
-        /// <remarks>
-        /// The method first evaluates any transitions (global transitions), followed by transitions specific to the current state.
-        /// If a transition is triggered, the state machine changes to the target state. Finally, the OnUpdate method of the current state is called.
-        /// </remarks>
-        public void Update()
+        public void ProcessStateChange()
         {
             var transition = GetTransition();
             if (transition != null)
                 ChangeState(transition.To);
-            current.State?.OnUpdate();
+        }
+
+        /// <summary>
+        /// Invokes the Awake method of the current state's implementation if it meets the lifecycle requirements.
+        /// This method ensures that the state's Awake logic is triggered only when the current state's
+        /// lifecycle mask includes the Awake flag and the state is not null.
+        /// </summary>
+        public void Awake()
+        {
+            if (!isStateNull && (current.State.LifecycleRequirements & StateLifecycleMask.Awake) != 0) 
+                current.State.Awake();
+        }
+
+        /// <summary>
+        /// Invokes the Start method of the current state's implementation if it meets the lifecycle requirements.
+        /// This method ensures that the state's Start logic is triggered only when the current state's
+        /// lifecycle mask includes the Start flag and the state is not null.
+        /// </summary>
+        public void Start()
+        {
+            if (!isStateNull && (current.State.LifecycleRequirements & StateLifecycleMask.Start) != 0) 
+                current.State.Start();
+        }
+        
+        /// <summary>
+        /// Invokes the Update method of the current state's implementation if it meets the lifecycle requirements.
+        /// This method ensures that the state's Update logic is triggered only when the current state's
+        /// lifecycle mask includes the Update flag and the state is not null.
+        /// </summary>
+        public void Update()
+        {
+            if (!isStateNull && (current.State.LifecycleRequirements & StateLifecycleMask.Update) != 0) 
+                current.State.Update();
+        }
+
+        /// <summary>
+        /// Invokes the LateUpdate method of the current state's implementation,
+        /// if a state is set and its LifecycleRequirements include LateUpdate.
+        /// This method is designed to handle frame-dependent logic that needs
+        /// to occur after the Update phase but before rendering.
+        /// </summary>
+        public void LateUpdate()
+        {
+            if (!isStateNull && (current.State.LifecycleRequirements & StateLifecycleMask.LateUpdate) != 0) 
+                current.State.LateUpdate();
+        }
+
+        /// <summary>
+        /// Invokes the FixedUpdate method of the current state's implementation if a state is set
+        /// and the state's lifecycle requirements include the FixedUpdate flag.
+        /// This is used for consistent physics-based updates in line with the Unity physics system.
+        /// </summary>
+        public void FixedUpdate()
+        {
+            if (!isStateNull && (current.State.LifecycleRequirements & StateLifecycleMask.FixedUpdate) != 0) 
+                current.State.FixedUpdate();
         }
 
         /// <summary>
@@ -102,6 +142,7 @@ namespace PsigenVision.FiniteStateMachine
             if (!nodes.TryGetValue(state.GetType(), out current))
                 nodes.Add(state.GetType(), current = new StateNode(state));
             if (enterAfterSetting) current.State?.Enter();
+            isStateNull = current.State == null; //cache whether the current state has been switched to null
         }
 
         public void SetStartingState(IState state) => SetCurrentState(state, true);
